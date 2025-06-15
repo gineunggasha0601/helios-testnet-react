@@ -216,24 +216,13 @@ const ConnectWallet = () => {
         }
 
         // If login fails because user is not registered, try to register
-        if (loginError.message?.includes("not registered")) {
-          console.log("Login failed, attempting to register new user.");
-          try {
-            const registerResponse = await api.register(address, signature, inviteCode);
-            setUser(registerResponse.user);
-            return;
-          } catch (registerError: any) {
-            // Handle registration errors (e.g., invalid invite code)
-            if (registerError instanceof NetworkError) {
-              throw registerError; // Re-throw to be caught by the outer catch
-            }
-             if (registerError.message?.includes("Invalid invite code")) {
-              setNeedsInviteCode(true);
-              setError("This invite code is invalid. Please try another.");
-              return;
-            }
-            throw new Error(`Registration failed: ${registerError.message}`);
-          }
+        if (loginError.message?.includes("not registered") || loginError.message?.includes("User not found")) {
+          console.log("Login failed, user needs to register with invite code.");
+          setNeedsInviteCode(true);
+          setPendingWallet(address);
+          setPendingSignature(signature);
+          setError("Please enter an invite code to register your account.");
+          return;
         }
         
         // Handle other login errors, like "account not confirmed"
