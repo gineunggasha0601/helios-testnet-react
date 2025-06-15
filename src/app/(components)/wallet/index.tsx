@@ -8,11 +8,13 @@ import s from "./wallet.module.scss";
 import { useAppKit } from "@reown/appkit/react";
 import { useAccount, useDisconnect } from "wagmi";
 import { useEffect, useState, useRef } from "react";
+import { useStore } from "../../../store/onboardingStore";
 
 export const Wallet = () => {
   const { open: openLoginModal, close: closeLoginModal } = useAppKit();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
+  const resetStore = useStore((state) => state.resetStore);
   const hasLoggedIn = useRef(false);
 
   useEffect(() => {
@@ -32,8 +34,16 @@ export const Wallet = () => {
   };
 
   const handleLogout = async () => {
+    // Clear JWT token from localStorage
+    localStorage.removeItem("jwt_token");
+    
+    // Reset application state
+    resetStore();
+    
+    // Disconnect wallet
     await closeLoginModal();
     disconnect();
+    
     toast.success("Logged out");
   };
 
