@@ -112,7 +112,7 @@ const ConnectWallet = () => {
   // Explicitly check token on mount
   useEffect(() => {
     // Double-check to ensure we're not showing the connect UI when no token exists
-    if (isReallyConnected) {
+    if (isReallyConnected && pendingSignature !== "pending") {
       const token = localStorage.getItem("jwt_token");
       if (!token) {
         console.log(
@@ -209,14 +209,17 @@ const ConnectWallet = () => {
       try {
         const loginResponse = await api.login(address, signature);
         setUser(loginResponse.user);
-        return; 
+        return;
       } catch (loginError: any) {
         if (loginError instanceof NetworkError) {
           throw loginError; // Re-throw to be caught by the outer catch
         }
 
         // If login fails because user is not registered, try to register
-        if (loginError.message?.includes("not registered") || loginError.message?.includes("User not found")) {
+        if (
+          loginError.message?.includes("not registered") ||
+          loginError.message?.includes("User not found")
+        ) {
           console.log("Login failed, user needs to register with invite code.");
           setNeedsInviteCode(true);
           setPendingWallet(address);
@@ -224,14 +227,18 @@ const ConnectWallet = () => {
           setError("Please enter an invite code to register your account.");
           return;
         }
-        
+
         // Handle other login errors, like "account not confirmed"
         if (loginError.message?.includes("not confirmed")) {
-          console.log("Account exists but needs confirmation with an invite code.");
+          console.log(
+            "Account exists but needs confirmation with an invite code."
+          );
           setNeedsInviteCode(true);
           setPendingWallet(address);
           setPendingSignature(signature);
-          setError("Your account is not confirmed. Please enter a valid invite code to proceed.");
+          setError(
+            "Your account is not confirmed. Please enter a valid invite code to proceed."
+          );
           return;
         }
 
@@ -241,9 +248,13 @@ const ConnectWallet = () => {
     } catch (error: any) {
       console.error("Authentication process failed:", error);
       if (error instanceof NetworkError) {
-        setError("Failed to connect to Helios servers. Please try again later.");
+        setError(
+          "Failed to connect to Helios servers. Please try again later."
+        );
       } else {
-        setError(error.message || "An unknown error occurred during authentication.");
+        setError(
+          error.message || "An unknown error occurred during authentication."
+        );
       }
     } finally {
       setIsLoading(false);
@@ -283,11 +294,15 @@ const ConnectWallet = () => {
         throw new Error(`Login failed: ${error.message}`);
       }
     } catch (error: any) {
-       console.error("Login with invite code failed:", error);
+      console.error("Login with invite code failed:", error);
       if (error instanceof NetworkError) {
-        setInviteError("Failed to connect to Helios servers. Please try again later.");
+        setInviteError(
+          "Failed to connect to Helios servers. Please try again later."
+        );
       } else {
-        setInviteError(error.message || "An unknown error occurred during login.");
+        setInviteError(
+          error.message || "An unknown error occurred during login."
+        );
       }
     } finally {
       setIsLoading(false);
@@ -319,6 +334,7 @@ const ConnectWallet = () => {
       if (!pendingSignature && pendingWallet) {
         try {
           // Get a signature for the wallet
+          setPendingSignature("pending");
           const signature = await signMessage(pendingWallet);
           setPendingSignature(signature);
 
