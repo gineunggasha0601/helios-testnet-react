@@ -765,12 +765,12 @@ class ApiClient {
     }
   }
 
-  async requestFaucetTokens(token: string, chain: string, amount: number): Promise<FaucetTokenResponse> {
+  async requestFaucetTokens(token: string, chain: string, amount: number, turnstileToken: string): Promise<FaucetTokenResponse> {
     try {
       const response = await fetch(`${API_URL}/faucet/request`, {
         method: "POST",
         headers: this.getHeaders(),
-        body: JSON.stringify({ token, chain, amount }),
+        body: JSON.stringify({ token, chain, amount, turnstileToken }),
       });
 
       if (!response.ok) {

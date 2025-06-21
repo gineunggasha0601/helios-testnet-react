@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "../store/onboardingStore";
 import Mascot from "./Mascot";
@@ -6,6 +6,8 @@ import XPToast from "./XPToast";
 import { api } from "../services/api";
 import Dashboard from "./Dashboard";
 import { Video } from "@/components/video/video";
+import { Turnstile } from '@marsidev/react-turnstile';
+import { Shield, CheckCircle } from "lucide-react";
 
 const TOTAL_STEPS = 5;
 
@@ -61,6 +63,8 @@ const OnboardingFlow = () => {
     amount?: number;
     token?: string;
   }>({ show: false });
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const turnstileRef = useRef<any>(null);
 
   const checkNetworkExists = async () => {
     try {
@@ -163,8 +167,13 @@ const OnboardingFlow = () => {
 
       await api.startOnboardingStep("claim_from_faucet");
 
+      // Check if Turnstile token is available
+      if (!turnstileToken) {
+        throw new Error("Please complete the security verification first.");
+      }
+
       // Call faucet API to get tokens
-      const faucetResponse = await api.requestFaucetTokens("HLS", "helios-testnet", 1);
+      const faucetResponse = await api.requestFaucetTokens("HLS", "helios-testnet", 1, turnstileToken);
       
       // Show transaction notification
       if (faucetResponse.success && faucetResponse.transactionHash) {
@@ -188,6 +197,12 @@ const OnboardingFlow = () => {
         setStep(5);
       } else {
         console.error("Failed to claim tokens:", error);
+        
+        // Reset Turnstile on error
+        setTurnstileToken("");
+        if (turnstileRef.current) {
+          turnstileRef.current.reset();
+        }
       }
     } finally {
       setIsLoading(false);
@@ -208,6 +223,13 @@ const OnboardingFlow = () => {
         } else {
           setPendingXP((prev) => prev + 5); // Default XP if not provided by API
         }
+        
+        // Reset Turnstile for security
+        setTurnstileToken("");
+        if (turnstileRef.current) {
+          turnstileRef.current.reset();
+        }
+        
         setStep(5);
       }
     }
@@ -332,10 +354,58 @@ const OnboardingFlow = () => {
               currentStep={3}
               totalSteps={TOTAL_STEPS}
               onNext={handleClaimTokens}
-              buttonText="Claim from Faucet"
+              buttonText={!turnstileToken ? "Complete Security Verification" : "Claim from Faucet"}
               loadingText="Claiming..."
               isLoading={isLoading}
             />
+            
+            {/* Turnstile Security Verification */}
+            {isTypingComplete && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="mt-8 max-w-md mx-auto"
+              >
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                  <div className="flex items-center justify-center mb-4">
+                    <Shield className="w-5 h-5 text-white mr-2" />
+                    <h3 className="text-white font-semibold">Security Verification</h3>
+                  </div>
+                  
+                  <div className="flex justify-center mb-4">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey="0x4AAAAAABhz7Yc1no53_eWA"
+                      onSuccess={(token: string) => {
+                        console.log('Turnstile verified:', token);
+                        setTurnstileToken(token);
+                      }}
+                      onError={() => {
+                        console.error('Turnstile error');
+                        setTurnstileToken("");
+                      }}
+                      onExpire={() => {
+                        console.log('Turnstile expired');
+                        setTurnstileToken("");
+                      }}
+                    />
+                  </div>
+                  
+                  {!turnstileToken && (
+                    <p className="text-white/70 text-sm text-center">
+                      Please complete the security verification to claim your tokens
+                    </p>
+                  )}
+                  {turnstileToken && (
+                    <p className="text-green-400 text-sm text-center flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Security verification completed! You can now claim tokens.
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </>
         )}
 

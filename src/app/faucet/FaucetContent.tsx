@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { api, AvailableTokensResponse, FaucetClaimHistoryResponse } from "@/services/api";
 import { Button } from "@/components/button";
@@ -8,8 +8,9 @@ import styles from "./faucet.module.scss";
 import { useAccount } from "wagmi";
 import { ViewContext } from "@/components/LayoutClientWrapper";
 import LoadingIndicator from "@/components/LoadingIndicator";
-import { Droplet, Clock, CheckCircle, AlertCircle, Globe, Database } from "lucide-react";
+import { Droplet, Clock, CheckCircle, AlertCircle, Globe, Database, Shield } from "lucide-react";
 import Footer from "@/components/Footer";
+import { Turnstile } from '@marsidev/react-turnstile';
 
 interface TokenInfo {
   token: string;
@@ -43,6 +44,8 @@ export default function FaucetContent() {
   const [error, setError] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [eligibility, setEligibility] = useState<Record<string, boolean>>({});
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const turnstileRef = useRef<any>(null);
 
   useEffect(() => {
     if (isConnected) {
@@ -136,6 +139,12 @@ export default function FaucetContent() {
   const handleClaimTokens = async () => {
     if (!selectedToken || !selectedChain) return;
     
+    // Check if Turnstile token is available
+    if (!turnstileToken) {
+      setError("Please complete the security verification first.");
+      return;
+    }
+    
     setClaimLoading(true);
     setError("");
     setSuccessMessage("");
@@ -144,10 +153,17 @@ export default function FaucetContent() {
       const response = await api.requestFaucetTokens(
         selectedToken.token,
         selectedChain,
-        amount
+        amount,
+        turnstileToken
       );
       
       setSuccessMessage(`Successfully claimed ${amount} ${selectedToken.token} on ${selectedChain}!`);
+      
+      // Reset Turnstile for next use
+      setTurnstileToken("");
+      if (turnstileRef.current) {
+        turnstileRef.current.reset();
+      }
       
       // Refresh claim history and eligibility
       const historyResponse = await api.getFaucetClaimHistory(1, 10);
@@ -155,6 +171,12 @@ export default function FaucetContent() {
       checkEligibility(selectedToken.token, selectedChain);
     } catch (error: any) {
       setError(error.message || "Failed to claim tokens. Please try again later.");
+      
+      // Reset Turnstile on error
+      setTurnstileToken("");
+      if (turnstileRef.current) {
+        turnstileRef.current.reset();
+      }
     } finally {
       setClaimLoading(false);
     }
@@ -167,6 +189,12 @@ export default function FaucetContent() {
     if (token) {
       setAmount(token.maxClaimAmount);
       setSelectedChain(token.chain);
+    }
+    
+    // Reset Turnstile when token changes for security
+    setTurnstileToken("");
+    if (turnstileRef.current) {
+      turnstileRef.current.reset();
     }
   };
 
@@ -338,13 +366,59 @@ export default function FaucetContent() {
                             min={0}
                             max={selectedToken.maxClaimAmount || 0}
                             value={amount}
-                            onChange={(e) => setAmount(Number(e.target.value))}
+                            onChange={(e) => {
+                              setAmount(Number(e.target.value));
+                              // Reset Turnstile when amount changes for security
+                              setTurnstileToken("");
+                              if (turnstileRef.current) {
+                                turnstileRef.current.reset();
+                              }
+                            }}
                             className="w-full p-3 bg-[#F9FAFF] border border-[#D7E0FF] rounded-lg text-[#060F32] focus:outline-none focus:ring-2 focus:ring-[#002DCB] focus:border-transparent"
                             disabled={!isEligible}
                           />
                           <p className="text-xs text-[#828DB3] mt-1">
                             Max: {selectedToken.maxClaimAmount || 0}
                           </p>
+                        </div>
+                        
+                        {/* Turnstile Security Verification */}
+                        <div className="form-group">
+                          <label className="block text-sm font-medium text-[#060F32] mb-2">
+                            <div className="flex items-center">
+                              <Shield className="w-4 h-4 mr-2" />
+                              Security Verification
+                            </div>
+                          </label>
+                          <div className="bg-[#F9FAFF] border border-[#D7E0FF] rounded-lg p-4">
+                            <Turnstile
+                              ref={turnstileRef}
+                              siteKey="0x4AAAAAABhz7Yc1no53_eWA"
+                              onSuccess={(token: string) => {
+                                console.log('Turnstile verified:', token);
+                                setTurnstileToken(token);
+                              }}
+                              onError={() => {
+                                console.error('Turnstile error');
+                                setTurnstileToken("");
+                              }}
+                              onExpire={() => {
+                                console.log('Turnstile expired');
+                                setTurnstileToken("");
+                              }}
+                            />
+                          </div>
+                          {!turnstileToken && (
+                            <p className="text-xs text-[#828DB3] mt-1">
+                              Please complete the security verification to proceed
+                            </p>
+                          )}
+                          {turnstileToken && (
+                            <p className="text-xs text-green-600 mt-1 flex items-center">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Security verification completed
+                            </p>
+                          )}
                         </div>
                         
                         <div className={`p-4 rounded-xl ${isEligible ? 'bg-[#E9F7EF] border border-[#00CC00]/30' : 'bg-[#FDEDED] border border-[#FF6666]/30'} mt-4`}>
@@ -369,12 +443,14 @@ export default function FaucetContent() {
                         <div className="mt-6">
                           <Button 
                             onClick={handleClaimTokens}
-                            disabled={!isEligible || claimLoading || !selectedToken || !selectedChain}
+                            disabled={!isEligible || claimLoading || !selectedToken || !selectedChain || !turnstileToken}
                             variant="primary"
                             size="medium"
                             className="w-full py-3"
                           >
-                            {claimLoading ? "Processing..." : "Claim Tokens"}
+                            {claimLoading ? "Processing..." : 
+                             !turnstileToken ? "Complete Security Verification" : 
+                             "Claim Tokens"}
                           </Button>
                         </div>
                       </>
