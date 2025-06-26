@@ -64,6 +64,7 @@ const OnboardingFlow = () => {
     token?: string;
   }>({ show: false });
   const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [turnstileKey, setTurnstileKey] = useState<number>(0); // Force re-render when needed
   const turnstileRef = useRef<any>(null);
 
   const checkNetworkExists = async () => {
@@ -200,9 +201,7 @@ const OnboardingFlow = () => {
         
         // Reset Turnstile on error
         setTurnstileToken("");
-        if (turnstileRef.current) {
-          turnstileRef.current.reset();
-        }
+        setTurnstileKey(prev => prev + 1); // Force re-render
       }
     } finally {
       setIsLoading(false);
@@ -226,9 +225,7 @@ const OnboardingFlow = () => {
         
         // Reset Turnstile for security
         setTurnstileToken("");
-        if (turnstileRef.current) {
-          turnstileRef.current.reset();
-        }
+        setTurnstileKey(prev => prev + 1); // Force re-render
         
         setStep(5);
       }
@@ -365,7 +362,7 @@ const OnboardingFlow = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="mt-8 max-w-md mx-auto"
+                className="mt-8 max-w-md mx-auto relative z-20"
               >
                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
                   <div className="flex items-center justify-center mb-4">
@@ -373,23 +370,32 @@ const OnboardingFlow = () => {
                     <h3 className="text-white font-semibold">Security Verification</h3>
                   </div>
                   
-                  <div className="flex justify-center mb-4">
-                    <Turnstile
-                      ref={turnstileRef}
-                      siteKey="0x4AAAAAABhz7Yc1no53_eWA"
-                      onSuccess={(token: string) => {
-                        console.log('Turnstile verified:', token);
-                        setTurnstileToken(token);
-                      }}
-                      onError={() => {
-                        console.error('Turnstile error');
-                        setTurnstileToken("");
-                      }}
-                      onExpire={() => {
-                        console.log('Turnstile expired');
-                        setTurnstileToken("");
-                      }}
-                    />
+                  <div className="flex justify-center mb-4 relative z-30" style={{ minHeight: '65px' }}>
+                    {!turnstileToken && (
+                      <Turnstile
+                        key={turnstileKey} // Force re-render when key changes
+                        ref={turnstileRef}
+                        siteKey="0x4AAAAAABhz7Yc1no53_eWA"
+                        onSuccess={(token: string) => {
+                          console.log('Turnstile verified:', token);
+                          setTurnstileToken(token);
+                        }}
+                        onError={() => {
+                          console.error('Turnstile error');
+                          setTurnstileToken("");
+                          setTurnstileKey(prev => prev + 1); // Force re-render on error
+                        }}
+                        onExpire={() => {
+                          console.log('Turnstile expired');
+                          setTurnstileToken("");
+                          setTurnstileKey(prev => prev + 1); // Force re-render on expire
+                        }}
+                        options={{
+                          theme: 'light',
+                          size: 'normal'
+                        }}
+                      />
+                    )}
                   </div>
                   
                   {!turnstileToken && (
