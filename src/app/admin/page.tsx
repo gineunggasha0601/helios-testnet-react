@@ -187,11 +187,10 @@ const AdminDashboard = () => {
       setLoading(true);
       
       // Fetch comprehensive data using existing API endpoints
-      const [quotaStats, referralStats, currentQuota, marketingAnalytics] = await Promise.all([
+      const [quotaStats, referralStats, currentQuota] = await Promise.all([
         api.getQuotaStatistics(30),
         api.getGlobalReferralStats(),
         api.getCurrentInviteQuota(),
-        api.getMarketingAnalytics()
       ]);
 
       // Calculate comprehensive stats

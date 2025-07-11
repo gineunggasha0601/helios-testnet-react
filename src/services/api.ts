@@ -1050,6 +1050,72 @@ class ApiClient {
       throw error;
     }
   }
+
+  async getMarketingAnalytics(): Promise<{ success: boolean; data: any; timestamp: string }> {
+    try {
+      const response = await fetch(`${API_URL}/admin/marketing-analytics`, {
+        method: "GET",
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to get marketing analytics");
+      }
+
+      return response.json();
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error instanceof TypeError) {
+        throw new NetworkError("A network error occurred while fetching marketing analytics.");
+      }
+      throw error;
+    }
+  }
+
+  async deactivateTemporaryCode(code: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_URL}/temporary-invites/${code}/deactivate`, {
+        method: "POST",
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to deactivate temporary invite code");
+      }
+
+      return response.json();
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error instanceof TypeError) {
+        throw new NetworkError("A network error occurred while deactivating a temporary code.");
+      }
+      throw error;
+    }
+  }
+
+  async cleanupExpiredCodes(): Promise<{ success: boolean; message: string; data: { deactivatedCount: number } }> {
+    try {
+      const response = await fetch(`${API_URL}/temporary-invites/cleanup/expired`, {
+        method: "POST",
+        headers: this.getHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to cleanup expired codes");
+      }
+
+      return response.json();
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error instanceof TypeError) {
+        throw new NetworkError("A network error occurred while cleaning up expired codes.");
+      }
+      throw error;
+    }
+  }
+
+
+
 }
 
 // Create and export the API client instance
