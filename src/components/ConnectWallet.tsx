@@ -17,6 +17,7 @@ import { ethers } from "ethers";
 import { Video } from "@/components/video/video";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 
 const ConnectWallet = () => {
   const { open: openLoginModal, close: closeLoginModal } = useAppKit();
@@ -40,6 +41,7 @@ const ConnectWallet = () => {
   const [showDiscordLink, setShowDiscordLink] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [hcaptchaToken, setHcaptchaToken] = useState<string | null>(null);
   const [pendingSignature, setPendingSignature] = useState<string | null>(null);
   const [pendingWallet, setPendingWallet] = useState<string | null>(null);
   const [previousConnectionState, setPreviousConnectionState] = useState<
@@ -135,48 +137,48 @@ const ConnectWallet = () => {
     }
   }, []);
 
-  // Automatically trigger signing when wallet is connected
-  useEffect(() => {
-    const checkAndSignMessage = async () => {
-      if (isReallyConnected && address && !isLoading && !needsInviteCode) {
-        // Check if we have a valid JWT token AND user data
-        const token = localStorage.getItem("jwt_token");
+  // // Automatically trigger signing when wallet is connected
+  // useEffect(() => {
+  //   const checkAndSignMessage = async () => {
+  //     if (isReallyConnected && address && !isLoading && !needsInviteCode) {
+  //       // Check if we have a valid JWT token AND user data
+  //       const token = localStorage.getItem("jwt_token");
 
-        if (token) {
-          // If token exists, we should already have or will get user data from the initialize function
-          // So we don't need to do anything here - the LayoutClientWrapper will handle initialization
-          console.log(
-            "Token exists, letting initialization handle authentication"
-          );
-          return;
-        }
+  //       if (token) {
+  //         // If token exists, we should already have or will get user data from the initialize function
+  //         // So we don't need to do anything here - the LayoutClientWrapper will handle initialization
+  //         console.log(
+  //           "Token exists, letting initialization handle authentication"
+  //         );
+  //         return;
+  //       }
 
-        // Only attempt to sign and authenticate if no token exists
-        if (!token) {
-          try {
-            setIsLoading(true);
-            await handleSignAndAuthenticate();
-          } catch (error: any) {
-            console.error("Auto-sign error:", error);
-            // Check for account confirmation requirements
-            if (
-              error.requiresInviteCode ||
-              error.message?.includes("not confirmed")
-            ) {
-              // This is handled in handleSignAndAuthenticate which should have set needsInviteCode
-              console.log("Account needs confirmation with invite code");
-            } else {
-              setError(error.message || "Failed to authenticate automatically");
-            }
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      }
-    };
+  //       // Only attempt to sign and authenticate if no token exists
+  //       if (!token) {
+  //         try {
+  //           setIsLoading(true);
+  //           await handleSignAndAuthenticate();
+  //         } catch (error: any) {
+  //           console.error("Auto-sign error:", error);
+  //           // Check for account confirmation requirements
+  //           if (
+  //             error.requiresInviteCode ||
+  //             error.message?.includes("not confirmed")
+  //           ) {
+  //             // This is handled in handleSignAndAuthenticate which should have set needsInviteCode
+  //             console.log("Account needs confirmation with invite code");
+  //           } else {
+  //             setError(error.message || "Failed to authenticate automatically");
+  //           }
+  //         } finally {
+  //           setIsLoading(false);
+  //         }
+  //       }
+  //     }
+  //   };
 
-    checkAndSignMessage();
-  }, [isReallyConnected, address]);
+  //   checkAndSignMessage();
+  // }, [isReallyConnected, address]);
 
   const signMessage = async (address: string): Promise<string> => {
     try {
@@ -228,7 +230,7 @@ const ConnectWallet = () => {
         }
         setUser(loginResponse.user);
         // After successful login, re-initialize to route to the correct step
-        await useStore.getState().initialize();
+        await useStore.getState().initialize(loginResponse.user);
         return;
       } catch (loginError: any) {
         if (loginError instanceof NetworkError) {
@@ -310,7 +312,11 @@ const ConnectWallet = () => {
         throw signError; // re-throw other signing errors
       }
 
-      const result = await api.verifyBot(address, signature);
+      if (!hcaptchaToken) {
+        throw new Error("Please complete the captcha to continue.");
+      }
+
+      const result = await api.verifyBot(address, signature, hcaptchaToken);
 
       if (result.success) {
         toast.success("Verification successful! You can now proceed.");
@@ -416,10 +422,14 @@ const ConnectWallet = () => {
           setPendingSignature(signature);
 
           // Try to confirm the account with the signature and invite code
+          if (!hcaptchaToken) {
+            throw new Error("Please complete the captcha verification to proceed.");
+          }
           const confirmResponse = await api.confirmAccount(
             pendingWallet,
             signature,
-            codeToUse
+            codeToUse,
+            hcaptchaToken
           );
 
           console.log("Account confirmed successfully:", confirmResponse);
@@ -444,10 +454,14 @@ const ConnectWallet = () => {
         // Use the confirmAccount API which will handle all cases (new user, existing unconfirmed, existing confirmed)
         try {
           console.log("Confirming account with invite code");
+          if (!hcaptchaToken) {
+            throw new Error("Please complete the captcha verification.");
+          }
           const confirmResponse = await api.confirmAccount(
             pendingWallet,
             pendingSignature!,
-            codeToUse
+            codeToUse,
+            hcaptchaToken
           );
 
           // If confirmation successful, use the response
@@ -469,7 +483,7 @@ const ConnectWallet = () => {
       
       // Instead of jumping to a step, re-initialize the store.
       // This will correctly detect that bot verification is now required.
-      useStore.getState().initialize();
+      useStore.getState().initialize(user);
 
     } catch (error: any) {
       console.error("Failed to register/confirm with invite:", error);
@@ -487,7 +501,7 @@ const ConnectWallet = () => {
       // Connect wallet first if not connected
       if (!isReallyConnected) {
         await openLoginModal();
-        // Wallet connection will trigger the useEffect which will handle signing
+        // Connection will be handled by wagmi, and the user can then click "Continue".
         setIsLoading(false);
         return;
       }
@@ -741,10 +755,24 @@ const ConnectWallet = () => {
                           </span>
                         </p>
                       </div>
+                      
+                      <div className="flex flex-col items-center gap-4 mt-4">
+                        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-lg border border-[#002DCB]/10">
+                          <HCaptcha
+                            sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY!}
+                            onVerify={setHcaptchaToken}
+                            onExpire={() => setHcaptchaToken(null)}
+                            onError={() => {
+                              setInviteError("Captcha failed. Please try again.");
+                              setHcaptchaToken(null);
+                            }}
+                          />
+                        </div>
+                      </div>
+
                     </div>
                   </motion.div>
                 ) : null}
-
 
                 {isReallyConnected && requiresBotVerification && (
                   <motion.div
@@ -766,6 +794,19 @@ const ConnectWallet = () => {
                       <br/>
                       We are making sure that you are not a bot.
                     </p>
+                    <div className="flex flex-col items-center gap-4 mt-4">
+                      <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl shadow-lg border border-[#002DCB]/10">
+                        <HCaptcha
+                          sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY!}
+                          onVerify={setHcaptchaToken}
+                          onExpire={() => setHcaptchaToken(null)}
+                          onError={() => {
+                            setError("Captcha failed. Please try again.");
+                            setHcaptchaToken(null);
+                          }}
+                        />
+                      </div>
+                    </div>
                     {showDiscordLink ? (
                       <>
                         <p className="text-center text-yellow-400 mb-4">
@@ -781,6 +822,7 @@ const ConnectWallet = () => {
                       </>
                     ) : (
                       <button
+                      style={{marginTop: "10px"}}
                         onClick={handleBotVerification}
                         disabled={isLoading}
                         className="btn-primary w-full"

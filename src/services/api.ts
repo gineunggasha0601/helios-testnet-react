@@ -424,12 +424,12 @@ class ApiClient {
     }
   }
 
-  async verifyBot(wallet: string, signature: string): Promise<{ success: boolean; message: string }> {
+  async verifyBot(wallet: string, signature: string, hcaptchaToken: string): Promise<{ success: boolean; message: string }> {
     try {
       const response = await fetch(`${API_URL}/users/verify-bot`, {
         method: "POST",
         headers: this.getHeaders(),
-        body: JSON.stringify({ wallet, signature }),
+        body: JSON.stringify({ wallet, signature, hcaptchaToken }),
       });
 
       const data = await response.json();
@@ -857,7 +857,8 @@ class ApiClient {
   async confirmAccount(
     wallet: string,
     signature: string,
-    inviteCode: string
+    inviteCode: string,
+    hcaptchaToken: string
   ): Promise<{ token: string; user: User; requiresBotVerification?: boolean }> {
     try {
       const response = await fetch(`${API_URL}/users/confirm-account`, {
@@ -865,7 +866,7 @@ class ApiClient {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ wallet, signature, inviteCode }),
+        body: JSON.stringify({ wallet, signature, inviteCode, hcaptchaToken }),
       });
 
       const data = await response.json();

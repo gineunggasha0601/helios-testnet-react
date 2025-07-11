@@ -16,7 +16,7 @@ interface OnboardingState {
   setRequiresBotVerification: (requires: boolean) => void;
   fetchUser: () => Promise<void>;
   fetchOnboardingProgress: () => Promise<void>;
-  initialize: () => Promise<void>;
+  initialize: (user?: User | null) => Promise<void>;
   resetStore: () => void;
   logout: () => void;
 }
@@ -78,7 +78,7 @@ export const useStore = create<OnboardingState>((set, get) => ({
     }
   },
 
-  initialize: async () => {
+  initialize: async (user?: User | null) => {
     if (typeof window === "undefined") return; // Prevent server-side access to localStorage
 
     const token = localStorage.getItem("jwt_token");
@@ -88,12 +88,17 @@ export const useStore = create<OnboardingState>((set, get) => ({
         set({ isUserLoading: true });
         // First try to check if the token is for a valid account that's confirmed
         try {
-          // Decode wallet from token to fetch user profile immediately
-          const decodedToken = JSON.parse(atob(token.split('.')[1]));
-          if (decodedToken.wallet) {
-            // Set a temporary user object to satisfy dependencies, then fetch full profile
-            set({ user: { wallet: decodedToken.wallet } as User });
-            await get().fetchUser();
+          if (user) {
+            // If user object is passed, use it directly
+            set({ user });
+          } else {
+            // Otherwise, decode wallet from token to fetch user profile immediately
+            const decodedToken = JSON.parse(atob(token.split('.')[1]));
+            if (decodedToken.wallet) {
+              // Set a temporary user object to satisfy dependencies, then fetch full profile
+              set({ user: { wallet: decodedToken.wallet } as User });
+              await get().fetchUser();
+            }
           }
 
           const progress = await api.getOnboardingProgress();
