@@ -6,33 +6,68 @@ interface OnboardingState {
   step: number;
   xp: number;
   user: User | null;
+  isUserLoading: boolean;
   onboardingProgress: OnboardingProgress | null;
+  requiresBotVerification: boolean;
   setStep: (step: number) => void;
   addXP: (amount: number) => void;
   setUser: (user: User | null) => void;
   setOnboardingProgress: (progress: OnboardingProgress) => void;
+  setRequiresBotVerification: (requires: boolean) => void;
+  fetchUser: () => Promise<void>;
   fetchOnboardingProgress: () => Promise<void>;
   initialize: () => Promise<void>;
   resetStore: () => void;
+  logout: () => void;
 }
 
 export const useStore = create<OnboardingState>((set, get) => ({
   step: 0,
   xp: 0,
   user: null,
+  isUserLoading: true,
   onboardingProgress: null,
+  requiresBotVerification: false,
 
   setStep: (step) => set({ step }),
   addXP: (amount) => set((state) => ({ xp: state.xp + amount })),
   setUser: (user) => set({ user }),
   setOnboardingProgress: (progress) => set({ onboardingProgress: progress }),
+  setRequiresBotVerification: (requires) => set({ requiresBotVerification: requires }),
   
+  fetchUser: async () => {
+    const { user } = get();
+    if (!user?.wallet) return; // Only fetch if we have a wallet address
+    set({ isUserLoading: true });
+    try {
+      const updatedUser = await api.getUserProfile(user.wallet);
+      set({ user: updatedUser });
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
+      // Don't clear user data on error, might be a temporary issue
+    } finally {
+      set({ isUserLoading: false });
+    }
+  },
+
   resetStore: () => set({
     step: 0,
     xp: 0,
     user: null,
-    onboardingProgress: null
+    isUserLoading: false,
+    onboardingProgress: null,
+    requiresBotVerification: false,
   }),
+  
+  logout: () => {
+    localStorage.removeItem("jwt_token");
+    set({
+      step: 0,
+      user: null,
+      onboardingProgress: null,
+      requiresBotVerification: false,
+    });
+  },
 
   fetchOnboardingProgress: async () => {
     try {
@@ -50,10 +85,18 @@ export const useStore = create<OnboardingState>((set, get) => ({
     console.log("token", token);
     if (token) {
       try {
+        set({ isUserLoading: true });
         // First try to check if the token is for a valid account that's confirmed
         try {
+          // Decode wallet from token to fetch user profile immediately
+          const decodedToken = JSON.parse(atob(token.split('.')[1]));
+          if (decodedToken.wallet) {
+            // Set a temporary user object to satisfy dependencies, then fetch full profile
+            set({ user: { wallet: decodedToken.wallet } as User });
+            await get().fetchUser();
+          }
+
           const progress = await api.getOnboardingProgress();
-          console.log("progress", progress);
           set({ onboardingProgress: progress });
 
           if (Array.isArray(progress.completedSteps)) {
@@ -101,6 +144,13 @@ export const useStore = create<OnboardingState>((set, get) => ({
             // Re-throw with confirmation flag
             throw confirmationError;
           }
+
+          if (progressError.response?.data?.requiresBotVerification) {
+            console.log("Account requires bot verification");
+            set({ requiresBotVerification: true });
+            // Don't throw an error, let the UI handle the verification step
+            return;
+          }
           
           // For other errors, just reset and let the user try again
           localStorage.removeItem("jwt_token");
@@ -109,6 +159,7 @@ export const useStore = create<OnboardingState>((set, get) => ({
         }
       } catch (error: any) {
         console.error("Failed to initialize:", error);
+        set({ isUserLoading: false });
         
         // Check for account confirmation errors
         if (error.message?.includes("not confirmed") || 
@@ -127,6 +178,12 @@ export const useStore = create<OnboardingState>((set, get) => ({
           
           // Re-throw the error with the confirmation flag
           throw confirmationError;
+        }
+
+        if (error.response?.data?.requiresBotVerification) {
+          console.log("Account requires bot verification");
+          set({ requiresBotVerification: true });
+          return;
         }
         
         // For other errors, reset to connect wallet

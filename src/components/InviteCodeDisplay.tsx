@@ -48,66 +48,38 @@ const InviteCodeDisplay = () => {
   };
 
   useEffect(() => {
-    console.log("InviteCodeDisplay: Fetching user profile");
-
-    // Don't attempt to fetch if we don't have a wallet address
-    if (!address) {
-      console.log("InviteCodeDisplay: No wallet address available");
-      setLoading(false);
-      setError("No wallet connected");
-      return;
-    }
-
     const fetchUserData = async () => {
+      // If the wallet is not connected yet, we'll just wait. The component will show its
+      // default loading state, and this effect will re-run when the address becomes available.
+      if (!address) {
+        return;
+      }
+
       try {
         setLoading(true);
-        // Fallback code for testing if API doesn't return a code
-        const fallbackCode =
-          "HELIOS" + Math.random().toString(36).substring(2, 8).toUpperCase();
-        // setReferralCode(fallbackCode);
+        setError(null); // Clear previous errors on a new fetch
 
-        // Fetch both profile and referrals
-        try {
-          console.log(
-            "InviteCodeDisplay: Fetching profile for wallet",
-            address
-          );
-          const [userProfile, referralsResponse] = await Promise.all([
-            api.getUserProfile(address),
-            api.getUserReferrals(1, 1),
-          ]);
+        // Fetch both profile and referrals in parallel
+        const [userProfile, referralsResponse] = await Promise.all([
+          api.getUserProfile(address),
+          api.getUserReferrals(1, 1),
+        ]);
 
-          console.log("InviteCodeDisplay: User profile", userProfile);
-          // If we got a referral code from profile API, use it
-          if (userProfile && userProfile.referralCode) {
-            console.log(
-              "InviteCodeDisplay: Referral code found in profile",
-              userProfile.referralCode
-            );
-            setReferralCode(userProfile.referralCode);
-          }
+        // Prioritize referral code from the user's profile first
+        const code = userProfile?.referralCode || referralsResponse?.referralCode || null;
+        setReferralCode(code);
 
-          // Set referral count from response
-          if (referralsResponse && referralsResponse.success) {
-            console.log("InviteCodeDisplay: Referrals data", referralsResponse);
-            // Get code from referrals response if not already set
-            if (!referralCode && referralsResponse.referralCode) {
-              setReferralCode(referralsResponse.referralCode);
-            }
-            // Set the referral count and XP
-            setReferralCount(referralsResponse.referralCount);
-            setReferralXP(referralsResponse.referralXP);
-          }
-
-          // Fetch invite quota information
-          await fetchInviteQuota();
-        } catch (fetchError) {
-          console.error("InviteCodeDisplay: Error fetching data:", fetchError);
-          console.log("fallbackCode", fallbackCode);
-          setReferralCode(fallbackCode);
+        if (referralsResponse?.success) {
+          setReferralCount(referralsResponse.referralCount);
+          setReferralXP(referralsResponse.referralXP);
         }
-      } catch (error) {
-        console.error("InviteCodeDisplay: Error in data fetch:", error);
+
+        // After fetching user data, get their invite quota
+        await fetchInviteQuota();
+
+      } catch (fetchError) {
+        console.error("InviteCodeDisplay: Error fetching data:", fetchError);
+        setError("Failed to load user data."); // Set a clear error state on failure
       } finally {
         setLoading(false);
       }

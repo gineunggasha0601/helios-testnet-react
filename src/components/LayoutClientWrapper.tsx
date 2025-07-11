@@ -33,9 +33,12 @@ const pathToViewMap: Record<string, string> = {
 };
 
 function AppContent() {
+  // Select state individually to prevent re-renders from creating new objects
   const step = useStore((state) => state.step);
   const initialize = useStore((state) => state.initialize);
   const user = useStore((state) => state.user);
+  const requiresBotVerification = useStore((state) => state.requiresBotVerification);
+  
   const [currentView, setCurrentView] = useState<string>("dashboard");
   const pathname = usePathname();
   const [isInitializing, setIsInitializing] = useState(true);
@@ -62,15 +65,16 @@ function AppContent() {
     };
 
     init();
-  }, [initialize, user]);
+  }, [initialize]); // Remove user from dependency array to prevent re-initialization loops
 
   // Show loading indicator while initializing
   if (isInitializing) {
     return <LoadingIndicator isLoading={true} text="Loading Helios Testnet..." />;
   }
 
-  // If not authenticated yet, show connect wallet
-  if (step === 0) {
+  // If bot verification is required OR if not authenticated yet, show connect wallet
+  // The ConnectWallet component itself will handle showing the verification UI
+  if (requiresBotVerification || step === 0) {
     return <ConnectWallet />;
   }
 

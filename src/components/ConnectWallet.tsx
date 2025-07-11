@@ -16,16 +16,28 @@ import { api, NetworkError } from "../services/api";
 import { ethers } from "ethers";
 import { Video } from "@/components/video/video";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 const ConnectWallet = () => {
   const { open: openLoginModal, close: closeLoginModal } = useAppKit();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { address, isConnected } = useAccount();
-  const { setStep, setUser, resetStore, user } = useStore();
+  
+  // Select state individually to prevent re-renders
+  const setStep = useStore((state) => state.setStep);
+  const setUser = useStore((state) => state.setUser);
+  const resetStore = useStore((state) => state.resetStore);
+  const user = useStore((state) => state.user);
+  const requiresBotVerification = useStore((state) => state.requiresBotVerification);
+  const setRequiresBotVerification = useStore((state) => state.setRequiresBotVerification);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsInviteCode, setNeedsInviteCode] = useState(false);
+  // Remove local state in favor of global store state
+  // const [needsBotVerification, setNeedsBotVerification] = useState(false); 
+  const [showDiscordLink, setShowDiscordLink] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [pendingSignature, setPendingSignature] = useState<string | null>(null);
@@ -208,7 +220,15 @@ const ConnectWallet = () => {
       // 2. Try to log in
       try {
         const loginResponse = await api.login(address, signature);
+        // The store is now updated by the api service directly, so this check is redundant but safe
+        if (loginResponse.requiresBotVerification) {
+          // setNeedsBotVerification(true); // Now handled by global state
+          setError("Please verify you are not a bot to continue.");
+          return;
+        }
         setUser(loginResponse.user);
+        // After successful login, re-initialize to route to the correct step
+        await useStore.getState().initialize();
         return;
       } catch (loginError: any) {
         if (loginError instanceof NetworkError) {
@@ -261,6 +281,58 @@ const ConnectWallet = () => {
     }
   };
 
+  const handleBotVerification = async () => {
+    if (!address) {
+      setError("Wallet not connected");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // The message for this signature must match what the backend's /verify-bot expects
+      const message = `I am verifying my account for Helios Testnet: ${address}`;
+      let signature: string;
+      try {
+        signature = await (
+          await new ethers.BrowserProvider(window.ethereum as any).getSigner()
+        ).signMessage(message);
+      } catch (signError: any) {
+        if (
+          signError.code === 4001 || // Standard MetaMask rejection code
+          signError.code === "ACTION_REJECTED" || // Ethers v6
+          signError.message?.includes("rejected") ||
+          signError.message?.includes("denied")
+        ) {
+          throw new Error("You cancelled the signature request.");
+        }
+        throw signError; // re-throw other signing errors
+      }
+
+      const result = await api.verifyBot(address, signature);
+
+      if (result.success) {
+        toast.success("Verification successful! You can now proceed.");
+        setRequiresBotVerification(false);
+        // Re-initialize to fetch latest user status and move to next step
+        useStore.getState().initialize();
+      } else {
+        toast.error(result.message || "Bot verification failed. Please try again or contact support.");
+        // If the wallet is not eligible, we might want to keep them in this state
+        // If it was a temporary service error, the user can retry.
+        if (result.message?.includes("not eligible")) {
+          // You could add specific logic here, like disabling the button for a while
+        }
+      }
+    } catch (err: any) {
+      console.error("Bot verification error:", err);
+      setError(err.message || "An unexpected error occurred during verification.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignAndLogin = async (walletAddress: string) => {
     let signature;
     try {
@@ -283,6 +355,11 @@ const ConnectWallet = () => {
 
       try {
         const response = await api.login(walletAddress, signature, inviteCode);
+        if (response.requiresBotVerification) {
+          setRequiresBotVerification(true);
+          setError("Please verify you are not a bot to continue.");
+          return;
+        }
         setUser(response.user);
         // Let the layout wrapper handle the state change
         return;
@@ -389,10 +466,14 @@ const ConnectWallet = () => {
 
       setUser(user);
       setNeedsInviteCode(false);
-      setStep(2);
+      
+      // Instead of jumping to a step, re-initialize the store.
+      // This will correctly detect that bot verification is now required.
+      useStore.getState().initialize();
+
     } catch (error: any) {
       console.error("Failed to register/confirm with invite:", error);
-      setInviteError(error.message || "Invalid invite code");
+      setInviteError(error.message || "Failed to register or confirm account.");
     } finally {
       setIsLoading(false);
     }
@@ -414,6 +495,12 @@ const ConnectWallet = () => {
       // If we have a wallet address but need invite code
       if (needsInviteCode) {
         await handleRegisterWithInvite();
+        return;
+      }
+
+      // If we have a wallet address but need bot verification
+      if (requiresBotVerification && address) {
+        await handleBotVerification();
         return;
       }
 
@@ -441,19 +528,25 @@ const ConnectWallet = () => {
 
   const clearInviteState = () => {
     setNeedsInviteCode(false);
+    setRequiresBotVerification(false);
+    setShowDiscordLink(false);
     setPendingSignature(null);
     setPendingWallet(null);
     setInviteCode("");
     setInviteError(null);
+    setError(null);
   };
 
   const renderButtonText = () => {
     if (isLoading) {
       if (needsInviteCode) return "Verifying code...";
+      if (requiresBotVerification) return "Verifying...";
       return "Processing...";
     }
 
     if (!isReallyConnected) return "Connect Wallet";
+
+    if (requiresBotVerification) return "Verify Account";
 
     if (needsInviteCode) {
       if (pendingWallet && !pendingSignature) {
@@ -465,6 +558,11 @@ const ConnectWallet = () => {
     return "Continue";
   };
 
+  const handleLinkDiscord = () => {
+    window.open('https://testnet-api.helioschain.network/wallet-connect', '_blank');
+  };
+
+  // Final render logic
   return (
     <div className="bg-[#F2F5FF] min-h-screen">
       <div className="bg-cover bg-center min-h-screen">
@@ -647,8 +745,59 @@ const ConnectWallet = () => {
                   </motion.div>
                 ) : null}
 
+
+                {isReallyConnected && requiresBotVerification && (
+                  <motion.div
+                    key="bot-verification"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="flex flex-col items-center gap-4"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-[#002DCB]/10">
+         
+                    <h2 className="text-2xl font-bold text-center mb-2">
+                    <ShieldCheck style={{display: "inline-block"}}  className="w-10 h-10 text-blue-400" />
+                      Verify Your Account
+                    </h2>
+                    <p className="text-center text-gray-400 mb-6">
+                      To ensure a fair and secure environment, please complete this
+                      one-time verification.
+                      <br/>
+                      We are making sure that you are not a bot.
+                    </p>
+                    {showDiscordLink ? (
+                      <>
+                        <p className="text-center text-yellow-400 mb-4">
+                          You must link your Discord account before you can verify.
+                        </p>
+                        <button
+                          onClick={handleLinkDiscord}
+                          disabled={isLoading}
+                          className="btn-primary w-full"
+                        >
+                          Link Discord
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleBotVerification}
+                        disabled={isLoading}
+                        className="btn-primary w-full"
+                      >
+                        {isLoading ? "Verifying..." : "Verify Now"}
+                      </button>
+                    )}
+                    </div>
+                  </motion.div>
+                )}
+
                 <motion.button
-                  onClick={handleConnect}
+                  onClick={
+                    requiresBotVerification
+                      ? handleBotVerification
+                      : handleConnect
+                  }
                   disabled={isLoading}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
@@ -677,28 +826,33 @@ const ConnectWallet = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                  ) : isReallyConnected ? (
-                    <>
-                      {needsInviteCode ? (
-                        <>
-                          <span>{renderButtonText()}</span>
-                        </>
-                      ) : (
-                        <>
-                          <ArrowRightCircle className="h-5 w-5" />
-                          <span>Continue</span>
-                        </>
-                      )}
-                    </>
                   ) : (
                     <>
-                      <Wallet className="h-5 w-5" />
-                      <span>Connect Wallet</span>
+                      {isReallyConnected ? (
+                        requiresBotVerification ? (
+                          <>
+                            <ShieldCheck className="h-5 w-5" />
+                            <span>{renderButtonText()}</span>
+                          </>
+                        ) : needsInviteCode ? (
+                          <span>{renderButtonText()}</span>
+                        ) : (
+                          <>
+                            <ArrowRightCircle className="h-5 w-5" />
+                            <span>Continue</span>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <Wallet className="h-5 w-5" />
+                          <span>Connect Wallet</span>
+                        </>
+                      )}
                     </>
                   )}
                 </motion.button>
 
-                {isReallyConnected && needsInviteCode && (
+                {isReallyConnected && (needsInviteCode || requiresBotVerification) && (
                   <button
                     onClick={clearInviteState}
                     className="mt-2 text-sm text-[#002DCB] hover:underline flex items-center"
@@ -733,8 +887,17 @@ const ConnectWallet = () => {
                       ) : (
                         <AlertTriangle className="h-5 w-5 text-yellow-400" />
                       )}
-                      <span className="text-sm font-medium">{error}</span>
+                      <span className="text-sm font-medium">{error.includes("Discord account not linked") ? "Your Discord account is not linked. Please link it, and once it is done, try again." : error}</span>
                     </div>
+                    {(showDiscordLink || error.includes("Discord account not linked")) && (
+                      <button
+                        onClick={() => window.open('https://testnet-api.helioschain.network/wallet-connect', '_blank')}
+                        className="mt-2 px-4 py-2 bg-[#5865F2] text-white rounded-lg text-sm font-semibold hover:bg-[#4752C4] transition-colors flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+                        Link Discord
+                      </button>
+                    )}
                   </motion.div>
                 )}
 

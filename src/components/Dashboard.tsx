@@ -30,6 +30,7 @@ import { ViewContext } from "./LayoutClientWrapper";
 import Footer from "./Footer";
 import { User } from "../services/api";
 import InviteQuotaInfo from "./InviteQuotaInfo";
+import { toast } from "react-toastify";
 
 interface ExtendedUser extends User {
   tags?: string[];
@@ -125,6 +126,7 @@ const Tooltip = ({ text, children, className = "", position = 'top' }: TooltipPr
 const Dashboard = () => {
   const { address } = useAccount();
   const { setCurrentView } = React.useContext(ViewContext);
+  const logout = useStore((state) => state.logout);
   const [xpHistory, setXPHistory] = useState<XPHistoryItem[]>([]);
   const [dailyMission, setDailyMission] = useState<DailyMissionItem[]>([]);
   const [Leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
@@ -210,8 +212,12 @@ const Dashboard = () => {
             console.error("Failed to fetch user profile:", error);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch initial data:", error);
+        if (error.accountSuspended) {
+          toast.error(error.message);
+          logout();
+        }
       }
     };
 

@@ -27,10 +27,11 @@ const DiscordIcon = () => (
 
 const Header: React.FC<HeaderProps> = ({ currentView }) => {
   const { setCurrentView } = React.useContext(ViewContext);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const router = useRouter();
   const user = useStore((state) => state.user);
   const setUser = useStore((state) => state.setUser);
+  const isUserLoading = useStore((state) => state.isUserLoading);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
   const [isPollingForDiscord, setIsPollingForDiscord] = useState(false);
   const { address } = useAccount();
 
@@ -200,7 +201,7 @@ const Header: React.FC<HeaderProps> = ({ currentView }) => {
 
             {/* Discord Link and InviteCodeDisplay */}
             <div className="hidden lg:flex items-center space-x-1 xl:space-x-1 min-h-[40px]">
-              {!hasDiscordLinked && (
+              {!isUserLoading && !hasDiscordLinked && (
                 <button
                   onClick={handleLinkDiscord}
                   className="bg-[#5865F2] discord-link-btn text-white rounded-full px-3 py-1.5 flex items-center hover:bg-[#4752c4] transition-colors shadow-sm text-base font-medium"
@@ -251,7 +252,7 @@ const Header: React.FC<HeaderProps> = ({ currentView }) => {
 
             {/* Mobile InviteCodeDisplay */}
             <div className="flex flex-row pt-2 border-t border-[#D7E0FF] space-x-2.5">
-              {!hasDiscordLinked && (
+              {!isUserLoading && !hasDiscordLinked && (
                 <button
                   onClick={handleLinkDiscord}
                   className="flex items-center space-x-2 px-3 py-2 rounded-full transition-colors bg-[#5865F2] text-white  hover:bg-[#4752c4]"

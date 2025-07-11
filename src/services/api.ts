@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { useStore } from "../store/onboardingStore";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
@@ -391,59 +392,56 @@ class ApiClient {
     wallet: string,
     signature: string,
     inviteCode?: string
-  ): Promise<{ token: string; user: User; requiresInviteCode?: boolean; walletAddress?: string }> {
+  ): Promise<{ token: string; user: User; requiresInviteCode?: boolean; walletAddress?: string; requiresBotVerification?: boolean }> {
     try {
-      const payload: { wallet: string; signature: string; inviteCode?: string } = {
-        wallet,
-        signature
-      };
-
-      if (inviteCode) {
-        payload.inviteCode = inviteCode;
-      }
-
       const response = await fetch(`${API_URL}/users/login`, {
         method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ wallet, signature, inviteCode }),
       });
 
       const data = await response.json();
 
-      if (response.status === 403 && data.requiresInviteCode) {
-        return {
-          token: "",
-          user: {} as User,
-          requiresInviteCode: true,
-          walletAddress: data.walletAddress || wallet
-        };
+      if (!response.ok) {
+        if (data.requiresBotVerification) {
+          useStore.getState().setRequiresBotVerification(true);
+        }
+        // Re-throw the error object which may contain flags like requiresInviteCode
+        throw data;
       }
+      
+      this.setToken(data.token);
+      return data;
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      if (error.requiresBotVerification) {
+        useStore.getState().setRequiresBotVerification(true);
+      }
+      // Re-throw error to be handled by the caller
+      throw error;
+    }
+  }
+
+  async verifyBot(wallet: string, signature: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_URL}/users/verify-bot`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify({ wallet, signature }),
+      });
+
+      const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 403 &&
-            (data.message?.includes("not confirmed") || data.requiresInviteCode)) {
-          const error = new Error(data.message || "Account not confirmed");
-          (error as any).requiresInviteCode = true;
-          (error as any).walletAddress = data.walletAddress || wallet;
-          throw error;
-        }
-        throw new Error(data.message || "Login failed");
+        throw new Error(data.message || "Bot verification failed");
       }
 
-      const token = data.token || (data.user && data.user.token);
-
-      if (token) {
-        this.setToken(token);
-        return {
-          token: token,
-          user: data.user || data,
-        };
-      } else {
-        throw new Error("Authentication failed: No token received");
-      }
+      return data;
     } catch (error: any) {
       if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred during login.");
+        throw new NetworkError("A network error occurred during bot verification.");
       }
       throw error;
     }
@@ -666,7 +664,8 @@ class ApiClient {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch XP level");
+        const errorData = await response.json();
+        throw errorData;
       }
 
       return response.json();
@@ -859,35 +858,35 @@ class ApiClient {
     wallet: string,
     signature: string,
     inviteCode: string
-  ): Promise<{ token: string; user: User }> {
+  ): Promise<{ token: string; user: User; requiresBotVerification?: boolean }> {
     try {
       const response = await fetch(`${API_URL}/users/confirm-account`, {
         method: "POST",
-        headers: this.getHeaders(),
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ wallet, signature, inviteCode }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Account confirmation failed");
+        // We no longer expect requiresBotVerification in the error case for this endpoint
+        throw data; // Throw the full error object
       }
 
-      const token = data.token;
-
-      if (token) {
-        this.setToken(token);
-        return {
-          token: token,
-          user: data.user || data,
-        };
-      } else {
-        throw new Error("Authentication failed: No token received");
+      // If the successful response indicates bot verification is needed
+      if (data.requiresBotVerification) {
+        useStore.getState().setRequiresBotVerification(true);
+      } else if (data.token) {
+        // If successful login/confirmation returns a token
+        this.setToken(data.token);
       }
+
+      return data;
     } catch (error: any) {
-      if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred while confirming the account.");
-      }
+      console.error("Account confirmation failed:", error);
+      // No need to check for requiresBotVerification here anymore
       throw error;
     }
   }
@@ -1011,7 +1010,7 @@ class ApiClient {
         includeInactive: includeInactive.toString(),
       });
 
-      const response = await fetch(`${API_URL}/temporary-invites?${params}`, {
+      const response = await fetch(`${API_URL}/temporary-invites?${params.toString()}`, {
         method: "GET",
         headers: this.getHeaders(),
       });
@@ -1045,95 +1044,7 @@ class ApiClient {
       return response.json();
     } catch (error: any) {
       if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred while getting temporary code info.");
-      }
-      throw error;
-    }
-  }
-
-  async deactivateTemporaryCode(code: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch(`${API_URL}/temporary-invites/${code}/deactivate`, {
-        method: "POST",
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to deactivate temporary invite code");
-      }
-
-      return response.json();
-    } catch (error: any) {
-      if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred while deactivating a temporary code.");
-      }
-      throw error;
-    }
-  }
-
-  async updateTemporaryCodeLimit(
-    code: string,
-    maxUses: number
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await fetch(`${API_URL}/temporary-invites/${code}/update-limit`, {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify({ maxUses }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update temporary invite code limit");
-      }
-
-      return response.json();
-    } catch (error: any) {
-      if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred while updating the temporary code limit.");
-      }
-      throw error;
-    }
-  }
-
-  async cleanupExpiredCodes(): Promise<{ success: boolean; message: string; data: { deactivatedCount: number } }> {
-    try {
-      const response = await fetch(`${API_URL}/temporary-invites/cleanup/expired`, {
-        method: "POST",
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to cleanup expired codes");
-      }
-
-      return response.json();
-    } catch (error: any) {
-      if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred while cleaning up expired codes.");
-      }
-      throw error;
-    }
-  }
-
-  async getMarketingAnalytics(): Promise<{ success: boolean; data: any; timestamp: string }> {
-    try {
-      const response = await fetch(`${API_URL}/admin/marketing-analytics`, {
-        method: "GET",
-        headers: this.getHeaders(),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to get marketing analytics");
-      }
-
-      return response.json();
-    } catch (error: any) {
-      if (error.name === 'AbortError' || error instanceof TypeError) {
-        throw new NetworkError("A network error occurred while fetching marketing analytics.");
+        throw new NetworkError("A network error occurred while fetching temporary code info.");
       }
       throw error;
     }
