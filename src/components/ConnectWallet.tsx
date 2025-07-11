@@ -50,6 +50,15 @@ const ConnectWallet = () => {
   // Additional wallet connection state to be more resilient against momentary disconnects
   const [wasEverConnected, setWasEverConnected] = useState(false);
 
+  // Check if Discord is linked when bot verification is required
+  useEffect(() => {
+    if (requiresBotVerification && user && !user.discord) {
+      setShowDiscordLink(true);
+    } else {
+      setShowDiscordLink(false);
+    }
+  }, [requiresBotVerification, user]);
+
   // Get search params for checking Discord linking status and referral code
   const searchParams = useSearchParams();
   const requireInvite = searchParams.get("requireInvite");
