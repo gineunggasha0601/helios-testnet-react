@@ -431,6 +431,69 @@ const Dashboard = () => {
                 </section>
               </div>
 
+              {/* Season 2 Transition Section */}
+              <div className="shrink-0">
+                <motion.section 
+                  className="bg-gradient-to-r from-[#002DCB] to-[#4A6CF7] rounded-2xl shadow-md p-8 web3-card text-white relative overflow-hidden"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                >
+                  {/* Background decoration */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6"></div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center">
+                        <div className="bg-white/20 backdrop-blur-sm p-3 rounded-full mr-4">
+                          <Flag className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold custom-font">Season 2 is Coming!</h3>
+                          <p className="text-blue-100 text-sm">The gamified testnet is evolving</p>
+                        </div>
+                      </div>
+                      <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                        <span className="text-sm font-medium">New Season</span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="bg-green-400/20 p-2 rounded-full mt-1">
+                          <Shield className="w-4 h-4 text-green-200" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white mb-1">Your XP is Safe!</h4>
+                          <p className="text-blue-100 text-sm leading-relaxed">
+                            All XP earned from previous seasons will be <strong>fully comptabilized</strong> in the final calculation. 
+                            Your progress and achievements carry forward to Season 2: <b>this season will feature dapps integrations and more focus on the ecosystem growth and node operations.</b>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4">
+                        <div className="flex items-center mb-2">
+                          <Zap className="w-5 h-5 text-yellow-300 mr-2" />
+                          <span className="font-medium text-white">Enhanced Features</span>
+                        </div>
+                        <p className="text-blue-100 text-sm">New missions, rewards, and gameplay mechanics</p>
+                      </div>
+                      <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4">
+                        <div className="flex items-center mb-2">
+                          <Trophy className="w-5 h-5 text-gold-300 mr-2" />
+                          <span className="font-medium text-white">Bigger Rewards</span>
+                        </div>
+                        <p className="text-blue-100 text-sm">More valuable tasks and exclusive roles</p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.section>
+              </div>
+
               <div className="flex-grow">
                 <section className="web3-card p-8 flex flex-col h-full">
                   <div className="flex items-center justify-between">
