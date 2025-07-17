@@ -44,6 +44,7 @@ const ADMIN_WALLETS = [
   "0xcfc9b7c86c97b0b5b6a5f897f102408ba3ca07d8".toLowerCase(), // chris wallet
   "0x688feDf2cc9957eeD5A56905b1A0D74a3bAc0000".toLowerCase(), // jiji wallet
   "0xc1DC703e60DFcAF560eA5E3C8Ab1CaeD738CA138".toLowerCase(), // yami wallet
+  "0x34d91c8cd5bb040a046363c691b17375a10c4eca".toLowerCase(), // chris new wallet
   // Add more admin wallets as needed
 ];
 
