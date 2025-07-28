@@ -21,7 +21,7 @@ import {
   Building,
   Megaphone,
   Flag,
-  Trophy
+  Trophy,
 } from "lucide-react";
 import { useStore } from "../store/onboardingStore";
 import { useAccount } from "wagmi";
@@ -92,31 +92,40 @@ interface TooltipProps {
   text: string;
   children: React.ReactNode;
   className?: string;
-  position?: 'top' | 'bottom';
+  position?: "top" | "bottom";
 }
 
-const Tooltip = ({ text, children, className = "", position = 'top' }: TooltipProps) => {
+const Tooltip = ({
+  text,
+  children,
+  className = "",
+  position = "top",
+}: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
-  
+
   return (
-    <div 
+    <div
       className={`relative inline-block ${className}`}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
     >
       {children}
       {isVisible && text && (
-        <div className={`absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-md shadow-lg whitespace-normal max-w-xs transform ${
-          position === 'top' 
-            ? 'bottom-full left-0 -translate-y-2 mb-1' 
-            : 'top-full left-0 translate-y-2 mt-1'
-        }`}>
+        <div
+          className={`absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-md shadow-lg whitespace-normal max-w-xs transform ${
+            position === "top"
+              ? "bottom-full left-0 -translate-y-2 mb-1"
+              : "top-full left-0 translate-y-2 mt-1"
+          }`}
+        >
           {text}
-          <div className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
-            position === 'top'
-              ? 'top-full left-4 -mt-1'
-              : 'bottom-full left-4 -mb-1'
-          }`}></div>
+          <div
+            className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
+              position === "top"
+                ? "top-full left-4 -mt-1"
+                : "bottom-full left-4 -mb-1"
+            }`}
+          ></div>
         </div>
       )}
     </div>
@@ -361,9 +370,9 @@ const Dashboard = () => {
   // Format tag name for display
   const formatTagName = (name: string) => {
     return name
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   return (
@@ -400,7 +409,6 @@ const Dashboard = () => {
                           </span>
                           Total XP: {xpLevelInfo?.totalXP || 0}
                         </div>
-                      
                       </div>
                     </div>
                   </div>
@@ -433,7 +441,7 @@ const Dashboard = () => {
 
               {/* Season 2 Transition Section */}
               <div className="shrink-0">
-                <motion.section 
+                <motion.section
                   className="bg-gradient-to-r from-[#002DCB] to-[#4A6CF7] rounded-2xl shadow-md p-8 web3-card text-white relative overflow-hidden"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -442,7 +450,7 @@ const Dashboard = () => {
                   {/* Background decoration */}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-8 translate-x-8"></div>
                   <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-6 -translate-x-6"></div>
-                  
+
                   <div className="relative z-10">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center">
@@ -450,44 +458,65 @@ const Dashboard = () => {
                           <Flag className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold custom-font">Season 2 is Coming!</h3>
-                          <p className="text-blue-100 text-sm">The gamified testnet is evolving</p>
+                          <h3 className="text-2xl font-bold custom-font">
+                            Season 2 is Coming!
+                          </h3>
+                          <p className="text-blue-100 text-sm">
+                            The gamified testnet is evolving
+                          </p>
                         </div>
                       </div>
                       <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
                         <span className="text-sm font-medium">New Season</span>
                       </div>
                     </div>
-                    
+
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4">
                       <div className="flex items-start space-x-3">
                         <div className="bg-green-400/20 p-2 rounded-full mt-1">
                           <Shield className="w-4 h-4 text-green-200" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-white mb-1">Your XP is Safe!</h4>
+                          <h4 className="font-semibold text-white mb-1">
+                            Your XP is Safe!
+                          </h4>
                           <p className="text-blue-100 text-sm leading-relaxed">
-                            All XP earned from previous seasons will be <strong>fully comptabilized</strong> in the final calculation. 
-                            Your progress and achievements carry forward to Season 2: <b>this season will feature dapps integrations and more focus on the ecosystem growth and node operations.</b>
+                            All XP earned from previous seasons will be{" "}
+                            <strong>fully comptabilized</strong> in the final
+                            calculation. Your progress and achievements carry
+                            forward to Season 2:{" "}
+                            <b>
+                              this season will feature dapps integrations and
+                              more focus on the ecosystem growth and node
+                              operations.
+                            </b>
                           </p>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4">
                         <div className="flex items-center mb-2">
                           <Zap className="w-5 h-5 text-yellow-300 mr-2" />
-                          <span className="font-medium text-white">Enhanced Features</span>
+                          <span className="font-medium text-white">
+                            Enhanced Features
+                          </span>
                         </div>
-                        <p className="text-blue-100 text-sm">New missions, rewards, and gameplay mechanics</p>
+                        <p className="text-blue-100 text-sm">
+                          New missions, rewards, and gameplay mechanics
+                        </p>
                       </div>
                       <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4">
                         <div className="flex items-center mb-2">
                           <Trophy className="w-5 h-5 text-gold-300 mr-2" />
-                          <span className="font-medium text-white">Bigger Rewards</span>
+                          <span className="font-medium text-white">
+                            Bigger Rewards
+                          </span>
                         </div>
-                        <p className="text-blue-100 text-sm">More valuable tasks and exclusive roles</p>
+                        <p className="text-blue-100 text-sm">
+                          More valuable tasks and exclusive roles
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -522,8 +551,11 @@ const Dashboard = () => {
                       // Determine tooltip position based on index and total items
                       const isFirstItem = index === 0;
                       const isLastItem = index === xpHistory.length - 1;
-                      const tooltipPosition = isFirstItem || (xpHistory.length <= 3 && !isLastItem) ? 'bottom' : 'top';
-                      
+                      const tooltipPosition =
+                        isFirstItem || (xpHistory.length <= 3 && !isLastItem)
+                          ? "bottom"
+                          : "top";
+
                       return (
                         <motion.div
                           key={item._id}
@@ -541,8 +573,8 @@ const Dashboard = () => {
                           </div>
                           <div className="flex-1 ml-3 min-w-0">
                             <div className="flex flex-wrap justify-between items-center">
-                              <Tooltip 
-                                text={item.description} 
+                              <Tooltip
+                                text={item.description}
                                 className="max-w-[60%]"
                                 position={tooltipPosition}
                               >
@@ -609,7 +641,9 @@ const Dashboard = () => {
                   <div className="bg-[#002DCB] p-2 rounded-full mr-3">
                     <Trophy className="w-5 h-5 text-white" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#060F32]">Top Contributors</h3>
+                  <h3 className="text-lg font-bold text-[#060F32]">
+                    Top Contributors
+                  </h3>
                 </div>
 
                 <div className="mt-4 mb-4">
@@ -762,29 +796,61 @@ const Dashboard = () => {
                   {dailyMission?.map((missionObj, index) => (
                     <div
                       key={index}
-                      className={`rounded-2xl ${missionObj.completed ? 'bg-[#E8EFFF] border-2 border-[#002DCB]' : 'bg-[#F9FAFF]'} max-w-57 p-8 flex-shrink-0 relative`}
+                      className={`rounded-2xl ${
+                        missionObj.completed
+                          ? "bg-[#E8EFFF] border-2 border-[#002DCB]"
+                          : "bg-[#F9FAFF]"
+                      } max-w-57 p-8 flex-shrink-0 relative`}
                     >
                       {missionObj.completed && (
                         <div className="absolute top-4 right-4 bg-[#002DCB] text-white rounded-full p-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <polyline points="20 6 9 17 4 12"></polyline>
                           </svg>
                         </div>
                       )}
                       <img src="/images/Icon6.svg" alt="logo" />
                       <div className="mt-2">
-                        <div className={`text-base ${missionObj.completed ? 'text-[#002DCB]' : 'text-[#060F32]'} custom-font font-bold capitalize`}>
-                          {missionObj.mission.replace(/_/g, ' ')}
+                        <div
+                          className={`text-base ${
+                            missionObj.completed
+                              ? "text-[#002DCB]"
+                              : "text-[#060F32]"
+                          } custom-font font-bold capitalize`}
+                        >
+                          {missionObj.mission.replace(/_/g, " ")}
                         </div>
                         <div className="text-sm text-[#828DB3] custom-font">
                           {missionObj.description}
                         </div>
-                        <div className={`mt-4 text-sm ${missionObj.completed ? 'text-[#002DCB] font-medium' : 'text-[#828DB3]'}`}>
-                          {missionObj.completed ? 'Completed' : 'Not completed'}
+                        <div
+                          className={`mt-4 text-sm ${
+                            missionObj.completed
+                              ? "text-[#002DCB] font-medium"
+                              : "text-[#828DB3]"
+                          }`}
+                        >
+                          {missionObj.completed ? "Completed" : "Not completed"}
                         </div>
                       </div>
                     </div>
                   ))}
+                </div>
+                {/* Centered 24h message below daily missions */}
+                <div className="mt-4 flex justify-center">
+                  <span className="text-xs text-[#828DB3] italic text-center">
+                    Each task is counted only once every 24 hours.
+                  </span>
                 </div>
               </section>
             </div>
@@ -812,7 +878,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex flex-row mt-4 space-x-3 overflow-x-auto pb-2">
                   {availableTags
-                    .filter(tag => {
+                    .filter((tag) => {
                       // Hide the "none" tag if user has other tags
                       if (tag.name === "none" && userTags.length > 1) {
                         return false;
@@ -823,41 +889,49 @@ const Dashboard = () => {
                       // Sort by active status first (active tags come first)
                       const aActive = userTags.includes(a.name);
                       const bActive = userTags.includes(b.name);
-                      
+
                       if (aActive && !bActive) return -1;
                       if (!aActive && bActive) return 1;
-                      
+
                       // Then sort by multiplier (higher multipliers first)
                       return b.xpMultiplier - a.xpMultiplier;
                     })
                     .map((tag) => {
                       const isActive = userTags.includes(tag.name);
                       return (
-                        <div 
+                        <div
                           key={tag.name}
                           className={`rounded-2xl min-w-[200px] p-6 flex-shrink-0 flex flex-col gap-2 ${
-                            isActive 
-                              ? "bg-[#F2F4FE] border-2 border-[#002DCB]" 
+                            isActive
+                              ? "bg-[#F2F4FE] border-2 border-[#002DCB]"
                               : "bg-[#F9FAFF]"
                           }`}
                         >
-                          <div className={`rounded-full w-12 h-12 flex items-center justify-center ${
-                            isActive ? "bg-[#002DCB] text-white" : "bg-[#E2EBFF] text-[#828DB3]"
-                          }`}>
+                          <div
+                            className={`rounded-full w-12 h-12 flex items-center justify-center ${
+                              isActive
+                                ? "bg-[#002DCB] text-white"
+                                : "bg-[#E2EBFF] text-[#828DB3]"
+                            }`}
+                          >
                             {getTagIcon(tag.name)}
                           </div>
                           <div className="mt-2">
-                            <div className={`text-base custom-font font-bold ${
-                              isActive ? "text-[#002DCB]" : "text-[#060F32]"
-                            }`}>
+                            <div
+                              className={`text-base custom-font font-bold ${
+                                isActive ? "text-[#002DCB]" : "text-[#060F32]"
+                              }`}
+                            >
                               {formatTagName(tag.name)}
                             </div>
                             <div className="text-sm text-[#828DB3]">
                               {tag.description}
                             </div>
-                            <div className={`text-sm mt-1 font-medium ${
-                              isActive ? "text-[#002DCB]" : "text-[#828DB3]"
-                            }`}>
+                            <div
+                              className={`text-sm mt-1 font-medium ${
+                                isActive ? "text-[#002DCB]" : "text-[#828DB3]"
+                              }`}
+                            >
                               {tag.xpMultiplier}x XP Multiplier
                             </div>
                             {tag.verificationRequired && (
@@ -875,18 +949,18 @@ const Dashboard = () => {
                     Contribute to earn special tags
                   </div>
                   <div className="flex gap-3">
-                    <a 
-                      href="https://github.com/helios-network" 
-                      target="_blank" 
+                    <a
+                      href="https://github.com/helios-network"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-[#002DCB] text-white rounded-full flex items-center justify-center gap-2 hover:bg-[#0045FF] transition-colors duration-200"
                     >
                       <Code className="w-4 h-4 text-white" />
                       <span className="text-white">GitHub</span>
                     </a>
-                    <a 
-                      href="https://x.com/helios_layer1" 
-                      target="_blank" 
+                    <a
+                      href="https://x.com/helios_layer1"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-[#002DCB] text-white rounded-full flex items-center justify-center gap-2 hover:bg-[#0045FF] transition-colors duration-200"
                     >
