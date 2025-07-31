@@ -61,6 +61,9 @@ yarn dev
 
 4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
+
+5. If you encounter any difficulties during installation, please check the official Node.js documentation or contact the Helios team.   
+
 ## Connecting to Helios Testnet
 
 To connect your wallet to the Helios testnet:
