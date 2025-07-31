@@ -4,6 +4,7 @@ A Next.js application for interacting with the Helios blockchain testnet. This a
 
 ## Features
 
+
 ### Test Token Faucet
 - Request testnet HLS tokens and other supported tokens
 - View claim history and eligibility status
@@ -18,6 +19,8 @@ A Next.js application for interacting with the Helios blockchain testnet. This a
 - Connect with popular Web3 wallets 
 - Interact directly with the Helios testnet blockchain
 - View transaction status and history
+- This application is still under development, so expect updates and improvements frequently.
+
 
 ## Helios Testnet Information
 
